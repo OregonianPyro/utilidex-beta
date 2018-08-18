@@ -1,0 +1,27 @@
+{
+  "name": "utilidex_beta",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start":"nodemon index.js --ignore commands/",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^2.4.1",
+    "discord.js": "^11.4.2",
+    "dotenv": "^6.0.0",
+    "enmap": "^3.1.1",
+    "enmap-level": "^2.1.0",
+    "eslint-config-eslint": "^5.0.1",
+    "insult-compliment": "^1.1.4",
+    "klaw": "^3.0.0",
+    "moment": "^2.22.2",
+    "moment-duration-format": "^2.2.2",
+    "ms": "^2.1.1",
+    "path": "^0.12.7",
+    "urban": "^0.3.1"
+  }
+}
