@@ -72,7 +72,7 @@ class Kick extends Command {
             .setAuthor(`${member.user.tag} | Kick`, member.user.displayAvatarURL)
             .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was kicked by ${message.author.tag}`)
             .addField('Reason', reason)
-            .setFooter(`Case #${this.client.cases.get(message.guild.id).length} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+            .setFooter(`Case #${this.client.cases.get(message.guild.id).length - 1} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
             .setColor('ORANGE');
         return modlog.send(log_embed);
     };

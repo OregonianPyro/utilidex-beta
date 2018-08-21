@@ -26,7 +26,7 @@ class Ping extends Command {
             .setColor(this.client.color)
             .setAuthor(this.client.user.username, this.client.user.displayAvatarURL)
             .setDescription(`Pong! It took me **${msg.createdTimestamp - message.createdTimestamp}**ms to edit that message!`)
-            .addField(':heartbeat: Discord Hearbeat', `**${this.client.ping.toFixed()}**ms`);
+            .addField(':heartbeat: Discord Heartbeat', `**${this.client.ping.toFixed()}**ms`);
         msg.edit(embed);
     };
 };

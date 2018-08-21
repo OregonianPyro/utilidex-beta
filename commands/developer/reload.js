@@ -21,7 +21,7 @@ class Reload extends Command {
         if (!args[0]) return this.client.help(this.client, message, 'reload');
         let command = args[0].toLowerCase();
         command = this.client.commands.get(command) || this.client.commands.get(this.client.aliases.get(command));
-        if (!command) return message.channel.send(`${this.client.emotes.x} The command \`${command}\` does not exist, nor is it an alias.`);
+        if (!command) return message.channel.send(`${this.client.emotes.x} The command \`${args[0]}\` does not exist, nor is it an alias.`);
         let response = await this.client.unloadCommand(command.conf.location, command.help.name);
         if (response) return message.channel.send(`${this.client.emotes.x} Error Unloading: \`${response}\``);
         response = this.client.loadCommand(command.conf.location, command.help.name);
