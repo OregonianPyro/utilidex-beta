@@ -59,7 +59,9 @@ class Lockdown extends Command {
                 .setDescription(`'${message.guild.name}' has been locked for **${ms(ms(time), { long: true })}** by ${message.author.username}`)
                 .addField('Reason', reason)
             message.channel.send(embed);
-            //if (!this.client.locks.includes(message.guild.id)) return;
+            this.client.locks.get('guilds').push(message.guild.id);
+            this.client.locks.set('guilds', this.client.locks.get('guilds'));
+            if (!this.client.locks.get('guilds').includes(message.guild.id)) return;
             setTimeout(() => {
                 message.guild.setVerificationLevel(level, 'Lockdown Ended');
                 const embed = new RichEmbed()
@@ -69,6 +71,9 @@ class Lockdown extends Command {
                     .setDescription(`'${message.guild.name}' has been unlocked by ${this.client.user.username}`)
                     .addField('Reason', 'Lockdown Ended');
                 message.channel.send(embed);
+                let index = this.client.locks.get('guilds').indexOf(message.guild.id);
+                this.client.locks.get('guilds').splice(index, 1);
+                this.client.locks.set('guilds', this.client.locks.get('guilds'));
             }, ms(time));
             if (!message.settings.logging.modlog.enabled) return;
             const log = message.guild.channels.get(message.settings.logging.modlog.channel);
@@ -111,7 +116,9 @@ class Lockdown extends Command {
                 .setDescription(`${message.channel} has been locked for **${ms(ms(time), { long: true })}** by ${message.author.username}`)
                 .addField('Reason', reason)
             message.channel.send(embed);
-            //if (!this.client.locks.includes(message.channel.id)) return;
+            this.client.locks.get('channels').push(message.channel.id);
+            this.client.locks.set('channels', this.client.locks.get('channels'));
+            if (!this.client.locks.get('channels').includes(message.channel.id)) return;
             setTimeout(async () => {
                 await message.channel.overwritePermissions(message.guild.id, {
                     SEND_MESSAGES: true,
@@ -124,6 +131,9 @@ class Lockdown extends Command {
                     .setDescription(`${message.channel} has been unlocked by ${this.client.user.username}`)
                     .addField('Reason', 'Lockdown Ended');
                 message.channel.send(embed);
+                let index = this.client.locks.get('channels').indexOf(message.channel.id);
+                this.client.locks.get('channels').splice(index, 1);
+                this.client.locks.set('channels', this.client.locks.get('channels'));
             }, ms(time));
             if (!message.settings.logging.modlog.enabled) return;
             const log = message.guild.channels.get(message.settings.logging.modlog.channel);
