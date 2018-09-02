@@ -8,10 +8,10 @@ class Lockdown extends Command {
             name: 'lockdown',
             category: 'moderation',
             description: 'Locks the current channel, or locks the server preventy anyone from speaking.',
-            usage: '{prefix}lockdown [-g|-global]',
-            parameters: 'stringFlag',
+            usage: '{prefix}lockdown [reason] [--g|--global]',
+            parameters: 'stringReason, stringFlag',
             extended: true,
-            extended_help: 'Adding the `-g` or `-global` flag will change your guild\'s verification level to `high`.\nNote: The `-g` flag will only work if you no autorole (on any bots) is enabled.',
+            extended_help: 'Adding the `--g` or `--global` flag will change your guild\'s verification level to `high`.\nNote: The `-g` flag will only work if you no autorole (on any bots) is enabled.',
             enabled: true,
             reason: null,
             devOnly: false,
@@ -24,19 +24,28 @@ class Lockdown extends Command {
 
     async run(message, args) {
         if (!args[0]) return this.client.help(this.client, message, 'lockdown');
-        //u!lockdown 3m -g
-        //[command] [0] [1];
-        const time = args[0];
-        if (isNaN(parseInt(ms(time)))) return this.client.error(message, 'Invalid time provided.');
-        if (ms(parseInt(time)) >= ms('3 days')) return this.client.error(message, 'Lockdowns cannot exceed 3 days.');
         let global;
         let reason;
-        if (!args[1] || !message.content.includes('-')) global = false;
-        if (args[1] && message.content.includes('-') && message.content.split('-')[1].includes('g' || 'global')) global = true;
-        message.delete();
+        const time = args[0];
+        if (isNaN(parseInt(time)) || ms(time) >= ms('3 days')) return this.client.error(message, 'Invalid time provided, or the time provided exceeded 3 days.');
+        if (message.content.includes('--')) {
+            let split = message.content.split('--')[1];
+            if (split.toLowerCase() === 'g' || split.toLowerCase() === 'global') {
+                global = true;
+            } else {
+                global = false;
+            };
+        } else {
+            global = false;
+        };
         if (global) {
-            if (args.slice(1).join(' ').split('-')[0].length < 0) reason = 'No Reason Provided';
-            reason = args.slice(1).join(' ').split('-')[0].join(' ');
+            let size = message.content.split(' ')[0].length;
+            let str = message.content.split('--')[0].slice(size).slice(1).split(' ').slice(1).join(' ');
+            if (str.length < 1) {
+                reason = 'No Reason Provided';
+            } else {
+                reason = str;
+            };
             let level = message.guild.verificationLevel;
             try {
                 await message.guild.setVerificationLevel(4, 'Global Lockdown');
@@ -55,7 +64,7 @@ class Lockdown extends Command {
                 message.guild.setVerificationLevel(level, 'Lockdown Ended');
                 const embed = new RichEmbed()
                     .setColor('DARK_ORANGE')
-                    .setAuthor(message.author.username, message.author.displayAvatarURL)
+                    .setAuthor(this.client.user.username, this.client.user.displayAvatarURL)
                     .setTitle('Server Unlocked')
                     .setDescription(`'${message.guild.name}' has been unlocked by ${this.client.user.username}`)
                     .addField('Reason', 'Lockdown Ended');
@@ -66,7 +75,7 @@ class Lockdown extends Command {
             if (!log) return;
             const lock_log = new RichEmbed()
                 .setColor('DARK_ORANGE')
-                .setAuthor(`${message.guild.name} | Global Lockdown`)
+                .setAuthor(`${message.guild.name} | Global Lockdown`, message.guild.iconURL)
                 .setDescription(`**${message.author.tag}** (\`${message.author.id}\`) locked ${message.guild.name} for ${ms(ms(time), { long: true })}`)
                 .addField('Reason', reason)
                 .setTimestamp();
@@ -74,14 +83,19 @@ class Lockdown extends Command {
             setTimeout(() => {
                 const unlock_log = new RichEmbed()
                     .setColor('DARK_ORANGE')
-                    .setAuthor(`${message.guild.name} | Global Unlock`)
+                    .setAuthor(`${message.guild.name} | Global Unlock`, message.guild.iconURL)
                     .setDescription(`**${this.client.user.tag}** (\`${this.client.user.id}\`) unlocked ${message.guild.name}`)
                     .addField('Reason', 'Lockdown Ended')
                     .setTimestamp();
                 log.send(unlock_log);
             }, ms(time));
         } else {
-            reason = args.slice(1).join(' ').length > 0 ? args.slice(1).join(' ') : 'No Reason Provided';
+            let str = args.slice(1).join(' ');
+            if (str.length < 1) {
+                reason = 'No Reason Provided';
+            } else {
+                reason = str;
+            };
             try {
                 await message.channel.overwritePermissions(message.guild.id, {
                     SEND_MESSAGES: false,
@@ -105,7 +119,7 @@ class Lockdown extends Command {
                 });
                 const embed = new RichEmbed()
                     .setColor('DARK_ORANGE')
-                    .setAuthor(message.author.username, message.author.displayAvatarURL)
+                    .setAuthor(this.client.user.username, this.client.user.displayAvatarURL)
                     .setTitle('Channel Unlocked')
                     .setDescription(`${message.channel} has been unlocked by ${this.client.user.username}`)
                     .addField('Reason', 'Lockdown Ended');
@@ -116,7 +130,7 @@ class Lockdown extends Command {
             if (!log) return;
             const lock_log = new RichEmbed()
                 .setColor('DARK_ORANGE')
-                .setAuthor(`${message.guild.name} | Lockdown`)
+                .setAuthor(`${message.guild.name} | Lockdown`, message.guild.iconURL)
                 .setDescription(`**${message.author.tag}** (\`${message.author.id}\`) locked ${message.channel} for ${ms(ms(time), { long: true })}`)
                 .addField('Reason', reason)
                 .setTimestamp();
@@ -124,7 +138,7 @@ class Lockdown extends Command {
             setTimeout(() => {
                 const unlock_log = new RichEmbed()
                     .setColor('DARK_ORANGE')
-                    .setAuthor(`${message.guild.name} | Unlock`)
+                    .setAuthor(`${message.guild.name} | Unlock`, message.guild.iconURL)
                     .setDescription(`**${this.client.user.tag}** (\`${this.client.user.id}\`) unlocked ${message.channel}`)
                     .addField('Reason', 'Lockdown Ended')
                     .setTimestamp();
