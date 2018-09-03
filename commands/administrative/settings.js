@@ -128,6 +128,24 @@ const { RichEmbed } = require('discord.js');
                 message.settings.logging.imagelog.enabled = true;
                 this.client.settings.set(message.guild.id, message.settings);
                 return success('image log', new_log.name);
+            } else if (key === 'rolelog') {
+                if (!args[2]) return fail('No channel was provided.');
+                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
+                    message.settings.logging.rolelog.enabled = false;
+                    this.client.settings.set(message.guild.id, message.settings);
+                    return success('rolelog', 'false');
+                };
+                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
+                    message.settings.logging.rolelog.enabled = true;
+                    this.client.settings.set(message.guild.id, message.settings);
+                    return success('rolelog', 'true');
+                };
+                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
+                if (!new_log) return fail('Invalid channel - Channel does not exist.');
+                message.settings.logging.rolelog.channel = new_log.id;
+                message.settings.logging.rolelog.enabled = true;
+                this.client.settings.set(message.guild.id, message.settings);
+                return success('rolelog channel', new_log.name);
             } else if (key === 'serverlog') {
                 if (!args[2]) return fail('No channel was provided.');
                 if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
