@@ -1,15 +1,16 @@
 const Command = require('../../base/command.js');
 const { RichEmbed } = require('discord.js');
+const ms = require('ms');
 const { ban } = require('../../modules/moderation/dm.js');
+const { tempban } = require('../../modules/moderation/dm.js');
 
 class Ban extends Command {
     constructor(client) {
         super(client, {
             name: 'ban',
-            category: 'moderation',
-            description: 'Bans a user from the server.',
-            usage: '{prefix}ban <@user|user ID> <reason>',
-            parameters: 'snowflakeGuildMember, stringReason',
+            description: 'Bans a member from the server. Optional \'soft ban\', temp-ban, or \'hard ban\' methods.',
+            usage: '{prefix}ban <@user|user ID> <reason> [--type] -[options]:[option]',
+            parameters: 'snowflakeGuildMember, stringReason, stringType, stringOptions, stringOption',
             extended: false,
             enabled: true,
             reason: null,
@@ -17,65 +18,101 @@ class Ban extends Command {
             guildOnly: true,
             permission: 'BAN_MEMBERS',
             bot_permission: 'BAN_MEMBERS',
-            aliases: []
+            aliases: ['permban']
         });
     };
 
     async run(message, args) {
-        if (!args[0]) return this.client.help(this.client, message, 'ban');
-        const member = message.mentions.members.first() || message.guild.members.get(args[0]);
-        if (!member) return this.client.args(message, 'USER MENTION OR ID');
-        if (member.user.id === message.author.id) {
-            return message.delete(), message.channel.send(`${this.client.emotes.x} Really, you think I'm going to let you ban yourself?`);
+        /**
+         * u!ban @user spam
+         * u!ban @user spam --s|oft -d:3
+         * u!ban @user spam --temp -t:1wk
+         * u!ban @user spam --hard
+         */
+        if(!args[0]) return this.client.help(this.client, message, 'ban');
+        let member = message.mentions.users.first() || this.client.users.get(args[0]) || await this.client.fetchUser(args[0]);
+        if (!member) return this.client.error(message, 'That user doest not exist.');
+        member = message.guild.members.get(member.id);
+        if (!member) return this.client.args(messae, 'USER MENTION OR ID');
+        let key = `${message.guild.id}-${member.user.id}`;
+        let flag;
+        let days;
+        let time;
+        let reason;
+        if (!message.content.includes('--')) {
+            flag = 'normal';
+        } else {
+            let type = message.content.split('--')[1];
+            if (!['soft', 'hard', 'temp'].includes(type.split(' ')[0].toLowerCase())) flag = 'normal';
+            if (type.split(' ')[0].toLowerCase() === 'soft') {
+                flag = 'soft';
+                let split = type.split(' ')[1];
+                if (!split.includes('-d:')) days = 1;
+                split = split.split(':')[1] > 0 && split.split(':')[1] < 8 ? split.split(':')[1] : 1;
+                days = split;
+            } else if (type.split(' ')[0].toLowerCase() === 'hard') {
+                flag = 'hard';
+                days = 7;
+            } else if (type.split(' ')[0].toLowerCase() === 'temp') {
+                flag = 'temp';
+                let split = type.split(' ')[1];
+                if (!split.includes('-t:')) return this.client.args(message, 'TIME');
+                if (isNaN(parseInt(ms(split.split(':')[1])))) return this.client.error(message, 'Invalid time provided.');
+                if (ms(split.split(':')[1]) >= ms('3 weeks')) return this.client.error(message, 'Bans cannot be longer than 3 weeks.');
+                time = split.split(':')[1];
+            };
         };
-        if (member.user.id === this.client.user.id) {
-            return message.delete(), message.channel.send(`${this.client.emotes.x} Nice try, but you can't ban me using me.`);
+        if (flag === 'normal') reason = args.slice(1).join(' ').length > 0 ? args.slice(1).join(' ') : 'No Reason Provided';
+        if (['soft', 'hard', 'temp'].includes(flag)) {
+            let split = message.content.split(' ');
+            split = split.slice(2).join(' ').split('--')[0];
+            reason = split.length > 0 ? split : 'No Reason Provided';
         };
-        if (member.highestRole.calculatedPosition >= message.guild.me.highestRole.calculatedPosition) {
-            return message.delete(), message.channel.send(`${this.client.emotes.x} That user cannot be moderated as they have a higher or equal role than the bot's highest role.`);
+        if (flag === 'normal') {
+            message.delete();
+            const embed = new RichEmbed()
+                .setAuthor(message.author.username, message.author.displayAvatarURL)
+                .setTitle('User Banned')
+                .setDescription(`**${member.user.username}** has been banned by ${message.author.username}`)
+                .addField('Reason', reason)
+                .setColor('RED')
+                .setThumbnail('https://goo.gl/35DMwK');
+            try {
+                await ban(message, member, reason);
+            } catch (e) {
+                console.log(e.message);
+            };
+            message.channel.send(member.toString(), embed);
+            try {
+                await member.ban(`Banned by ${message.author.tag} | Reason: ${reason}`);
+            } catch (e) {
+                return this.client.error(message, e.message), console.error(e.stack);
+            };
+            if (!this.client.mod_history.has(key)) this.client.mod_history.set(key, []);
+            const obj = {
+                case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
+                user: member.user.tag,
+                ID: member.user.id,
+                moderator: message.author.tag,
+                type: 'ban',
+                reason: reason,
+                time: this.client.moment().format('LLLL')
+            };
+            this.client.mod_history.get(key).push(obj);
+            this.client.mod_history.set(key, this.client.mod_history.get(key));
+            this.client.cases.get(message.guild.id).push(obj);
+            this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
+            if (!message.settings.logging.modlog.enabled) return;
+            if (!message.guild.channels.get(message.settings.logging.modlog.channel)) return;
+            const ban_log = new RichEmbed()
+                .setColor('RED')
+                .setAuthor(`${member.user.tag} | Ban`, member.user.displayAvatarURL)
+                .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was banned by ${message.author.tag}`)
+                .addField('Reason', reason)
+                .setFooter(`Case #${this.client.cases.get(message.guild.id).length - 1} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+            return message.guild.channels.get(message.settings.logging.modlog.channel).send(ban_log);
         };
-        const reason = args.slice(1).join(' ').length > 1 ? args.slice(1).join(' ') : 'No Reason Provided';
-        message.delete();
-        ban(message, member, reason);
-        const embed = new RichEmbed()
-            .setColor('RED')
-            .setAuthor(message.author.username, message.author.displayAvatarURL)
-            .setTitle('User Banned')
-            .setDescription(`**${member.user.username}** has been banned by ${message.author.username}`)
-            .addField('Reason', reason)
-            .setThumbnail('https://vignette.wikia.nocookie.net/the-zula-patrol/images/6/62/Red_X_icon.png/revision/latest?cb=20150702044511');
-        message.channel.send(member.toString(), embed);
-        try {
-            await member.ban(`Banned by ${message.author.tag} | Reason: ${reason}`);
-        } catch (e) {
-            this.client.emit('error', e.stack);
-            throw new Error(e.message);
-        };
-        if (!this.client.mod_history.has(`${message.guild.id}-${member.user.id}`)) this.client.mod_history.set(`${message.guild.id}-${member.user.id}`, []);
-        if (!this.client.cases.has(message.guild.id)) this.client.cases.set(message.guild.id, []);
-        let obj = {
-            case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
-            user: member.user.tag,
-            moderator: message.author.tag,
-            type: 'ban9',
-            reason: reason,
-            time: this.client.moment().format('LLLL')
-        };
-        this.client.cases.get(message.guild.id).push(obj);
-        this.client.mod_history.get(`${message.guild.id}-${member.user.id}`).push(obj);
-        this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
-        this.client.mod_history.set(`${message.guild.id}-${member.user.id}`, this.client.mod_history.get(`${message.guild.id}-${member.user.id}`));
-        if (!message.settings.logging.modlog.enabled) return;
-        const modlog = message.guild.channels.find(c => c.name === message.settings.logging.modlog.channel) || message.guild.channels.get(message.settings.logging.modlog.channel);
-        if (!modlog) return;
-        const log_embed = new RichEmbed()
-            .setAuthor(`${member.user.tag} | Ban`, member.user.displayAvatarURL)
-            .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was banned by ${message.author.tag}`)
-            .addField('Reason', reason)
-            .setFooter(`Case #${this.client.cases.get(message.guild.id).length} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
-            .setColor('RED');
-        return modlog.send(log_embed);
     };
-};
+};  
 
 module.exports = Ban;
