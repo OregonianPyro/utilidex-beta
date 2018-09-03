@@ -16,15 +16,17 @@ module.exports = {
         serverlog: {
             channel: null,
             enabled: false
+        },
+        imagelog: {
+            channel: null,
+            enabled: false
+        },
+        rolelog: {
+            channel: null,
+            enabled: false
         }
     },
-    mute: {
-        role: null,
-        default_time: {
-            enabled: false,
-            time: '1 hour'
-        }
-    },
+    mute_role: null,
     ignored: {
         users: [],
         roles: [],
@@ -44,8 +46,29 @@ module.exports = {
             }
         },
         invite_links: {
-            nickname_check: false,
-            playing_check: false,
+            nickname_check: {
+                enabled: false,
+                action: {
+                    warn: false,
+                    kick: false,
+                    ban: {
+                        time: 0,
+                        enabled: false
+                    },
+                    tag_staff: false
+                }  
+            },
+            playing_check: {
+                action: {
+                    warn: false,
+                    kick: false,
+                    ban: {
+                        time: 0,
+                        enabled: false
+                    },
+                    tag_staff: false
+                }  
+            },
             ignored: {
                 users: [],
                 roles: [],
