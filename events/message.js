@@ -24,12 +24,32 @@ class Message {
             return log.send(embed);
         };
         if (regex.test(message.content)) return require('../automod/invite_links.js')(message);
-        if (message.content.indexOf(message.settings.prefix) !== 0) return;
-        const args = message.content.split(' ').slice(1);
-        let command = message.content.split(' ')[0];
-        command = command.slice(message.settings.prefix.length).toLowerCase();
+        //
+        if (message.content.toLowerCase() === `<@${this.client.user.id}> prefix` || message.content.toLowerCase() === `<@!${this.client.user.id}> prefix`) {
+            return message.channel.send(`${message.author} | The prefix for '${message.guild.name}' is \`${message.settings.prefix}\``);
+        };
+        if (this.client.slow.has(message.guild.id) && this.client.slow.get(message.guild.id) === 'true') {
+            if (!this.client.slowmode.has(message.author.id)) {
+                this.client.slowmode.set(message.author.id, 'true');
+            } else if (this.client.slowmode.has(message.author.id)) {
+                message.delete();
+                message.reply('slowmode.');
+            };
+            setTimeout(() => {
+                if (!this.client.slowmode.has(message.author.id)) return;
+                this.client.slowmode.delete(message.author.id);
+            }, (8000));
+        };
+        //
+        //
+        const prefixMention = new RegExp(`^<@!?${this.client.user.id}>`);
+        const prefix = message.content.match(prefixMention) ? message.content.match(prefixMention)[0] : message.settings.prefix;
+        const args = message.content.slice(prefix.length).trim().split(/ +/g);
+        if (!message.content.startsWith(prefix)) return;
+        let command = args.shift().toLowerCase();
         const cmd = this.client.commands.get(command) || this.client.commands.get(this.client.aliases.get(command));
         if (!cmd) return;
+        this.client.usedCommands.set(cmd.help.name, this.client.usedCommands.get(cmd.help.name) + 1);
         if (!message.guild && cmd.conf.guildOnly) return message.channel.send(`${this.client.emotes.x} This command cannot be ran in DMs.`);
         if (!message.guild && !cmd.conf.guildOnly) {
             try {
@@ -45,6 +65,9 @@ class Message {
         };
         if (!message.member.permissions.has(cmd.conf.permission)) return message.reply('cant use that!');
         if (!message.guild.me.permissions.has(cmd.conf.bot_permission)) return message.reply(`the bot lacks the permission \`${cmd.conf.bot_permission}\``);
+        if (cmd.conf.devOnly && message.author.id !== '312358298667974656') {
+            return this.client.error(message, 'This command can only be ran by the bot developer.');
+        };
         try {
             await cmd.run(message, args);
         } catch (e) {
