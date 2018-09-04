@@ -111,6 +111,86 @@ class Ban extends Command {
                 .addField('Reason', reason)
                 .setFooter(`Case #${this.client.cases.get(message.guild.id).length - 1} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
             return message.guild.channels.get(message.settings.logging.modlog.channel).send(ban_log);
+        } else if (flag === 'soft') {
+            message.delete();
+            const embed = new RichEmbed()
+                .setAuthor(message.author.username, message.author.displayAvatarURL)
+                .setTitle('User Banned')
+                .setDescription(`**${member.user.username}** has been soft-banned by ${message.author.username}`)
+                .addField('Reason', reason)
+                .setColor('RED')
+                .setThumbnail('https://goo.gl/35DMwK');
+            try {
+                await ban(message, member, reason);
+            } catch (e) {
+                console.log(e.message);
+            };
+            message.channel.send(member.toString(), embed);
+            try {
+                await member.ban({
+                    days: days,
+                    reason: `Banned by ${message.author.tag} | Reason: ${reason}`
+                });
+            } catch (e) {
+                return this.client.error(message, e.message), console.error(e.stack);
+            };
+            if (!this.client.mod_history.has(key)) this.client.mod_history.set(key, []);
+            const obj = {
+                case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
+                user: member.user.tag,
+                ID: member.user.id,
+                moderator: message.author.tag,
+                type: 'ban',
+                reason: reason,
+                time: this.client.moment().format('LLLL')
+            };
+            this.client.mod_history.get(key).push(obj);
+            this.client.mod_history.set(key, this.client.mod_history.get(key));
+            this.client.cases.get(message.guild.id).push(obj);
+            this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
+            setTimeout(async () => {
+                try {
+                    await message.guild.unban(member.user.id, 'Soft-Ban Expired');
+                } catch (e) {
+                    return this.client.error(message, e.message), console.error(e.stack);
+                };
+                const obj = {
+                    case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
+                    user: member.user.tag,
+                    ID: member.user.id,
+                    moderator: this.client.user.tag,
+                    type: 'unban',
+                    reason: 'Soft-Ban Expred',
+                    time: this.client.moment().format('LLLL')
+                };
+                this.client.mod_history.get(key).push(obj);
+                this.client.mod_history.set(key, this.client.mod_history.get(key));
+                this.client.cases.get(message.guild.id).push(obj);
+                this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
+            }, (5000));
+            if (!message.settings.logging.modlog.enabled) return;
+            if (!message.guild.channels.get(message.settings.logging.modlog.channel)) return;
+            const ban_log = new RichEmbed()
+                .setColor('RED')
+                .setAuthor(`${member.user.tag} | Soft-Ban`, member.user.displayAvatarURL)
+                .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was soft-banned by ${message.author.tag}`)
+                .addField('Reason', reason)
+                .setFooter(`Case #${this.client.cases.get(message.guild.id).length - 1} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+            message.guild.channels.get(message.settings.logging.modlog.channel).send(ban_log);
+            setTimeout(() => {
+                const unban_log = new RichEmbed()
+                    .setColor('GREEN')
+                    .setAuthor(`${member.user.tag} | Unban`, member.user.displayAvatarURL)
+                    .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was unbanned by ${this.client.user.tag}`)
+                    .addField('Reason', 'Soft-Ban Expired')
+                    .setFooter(`Case #${this.client.cases.get(message.guild.id).length} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+                message.guild.channels.get(message.settings.logging.modlog.channel).send(unban_log);
+                }, (5000));
+            return;
+        } else if (flag === 'hard') {
+
+        } else if (flag === 'temp') {
+
         };
     };
 };  
