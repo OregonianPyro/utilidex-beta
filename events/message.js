@@ -28,20 +28,18 @@ class Message {
         if (message.content.toLowerCase() === `<@${this.client.user.id}> prefix` || message.content.toLowerCase() === `<@!${this.client.user.id}> prefix`) {
             return message.channel.send(`${message.author} | The prefix for '${message.guild.name}' is \`${message.settings.prefix}\``);
         };
-        if (this.client.slow.has(message.guild.id) && this.client.slow.get(message.guild.id) === 'true') {
-            if (!this.client.slowmode.has(message.author.id)) {
-                this.client.slowmode.set(message.author.id, 'true');
-            } else if (this.client.slowmode.has(message.author.id)) {
+        if (this.client.slowmode_array.includes(message.channel.id) && this.client.slowmode.has(message.channel.id)) {
+            if (!this.client.slowmode.get(message.channel.id).includes(message.author.id)) {
+                this.client.slowmode.get(message.channel.id).push(message.author.id);
+            } else {
                 message.delete();
-                message.reply('slowmode.');
+                setTimeout(() => {
+                    if (!this.client.slowmode.has(message.channel.id)) return;
+                    let index = this.client.slowmode.get(message.channel.id).indexOf(message.author.id);
+                    this.client.slowmode.get(message.channel.id).splice(index, 1);
+                }, (this.client.slowmode_times.get(message.channel.id)));
             };
-            setTimeout(() => {
-                if (!this.client.slowmode.has(message.author.id)) return;
-                this.client.slowmode.delete(message.author.id);
-            }, (8000));
         };
-        //
-        //
         const prefixMention = new RegExp(`^<@!?${this.client.user.id}>`);
         const prefix = message.content.match(prefixMention) ? message.content.match(prefixMention)[0] : message.settings.prefix;
         const args = message.content.slice(prefix.length).trim().split(/ +/g);
