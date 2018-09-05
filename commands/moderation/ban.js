@@ -30,10 +30,14 @@ class Ban extends Command {
          * u!ban @user spam --hard
          */
         if(!args[0]) return this.client.help(this.client, message, 'ban');
-        let member = message.mentions.users.first() || this.client.users.get(args[0]) || await this.client.fetchUser(args[0]);
+        let member = message.mentions.members.first() || this.client.users.get(args[0]) || await this.client.fetchUser(args[0]);
+        if (member.user.id === this.client.user.id) {
+            member = message.mentions.members.map(m => m.user.id).slice(1);
+        };
         if (!member) return this.client.error(message, 'That user doest not exist.');
-        member = message.guild.members.get(member.id);
-        if (!member) return this.client.args(messae, 'USER MENTION OR ID');
+        member = message.guild.members.get(member[0] || member.id);
+        return message.reply(member), console.log(`[0] | ${member[0]}\nID | ${member.id}`);
+        if (!member) return this.client.args(message, 'USER MENTION OR ID');
         let key = `${message.guild.id}-${member.user.id}`;
         let flag;
         let days;
@@ -62,10 +66,21 @@ class Ban extends Command {
                 time = split.split(':')[1];
             };
         };
-        if (flag === 'normal') reason = args.slice(1).join(' ').length > 0 ? args.slice(1).join(' ') : 'No Reason Provided';
+        if (flag === 'normal') {
+            if (!message.mentions.members.first()) {
+                reason = args.slice(1).join(' ');
+            } else {
+                reason = args.slice(2).join(' ');
+            };
+            if (reason.length < 1) return this.client.args(message, 'REASON');
+        };
         if (['soft', 'hard', 'temp'].includes(flag)) {
             let split = message.content.split(' ');
-            split = split.slice(2).join(' ').split('--')[0];
+            if (!message.mentions.members.first()) {
+                split = split.slice(2).join(' ').split('--')[0];
+            } else {
+                split = split.slice(3).join(' ').split('--')[0];
+            };
             reason = split.length > 0 ? split : 'No Reason Provided';
         };
         if (flag === 'normal') {
@@ -188,9 +203,125 @@ class Ban extends Command {
                 }, (5000));
             return;
         } else if (flag === 'hard') {
-
+            message.delete();
+            const embed = new RichEmbed()
+                .setAuthor(message.author.username, message.author.displayAvatarURL)
+                .setTitle('User Banned')
+                .setDescription(`**${member.user.username}** has been hard-banned by ${message.author.username}`)
+                .addField('Reason', reason)
+                .setColor('RED')
+                .setThumbnail('https://goo.gl/35DMwK');
+            try {
+                await ban(message, member, reason);
+            } catch (e) {
+                console.log(e.message);
+            };
+            message.channel.send(member.toString(), embed);
+            try {
+                await member.ban({
+                    days: 7,
+                    reason: `Banned by ${message.author.tag} | Reason: ${reason}`
+                });
+            } catch (e) {
+                return this.client.error(message, e.message), console.error(e.stack);
+            };
+            if (!this.client.mod_history.has(key)) this.client.mod_history.set(key, []);
+            const obj = {
+                case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
+                user: member.user.tag,
+                ID: member.user.id,
+                moderator: message.author.tag,
+                type: 'hardban',
+                reason: reason,
+                time: this.client.moment().format('LLLL')
+            };
+            this.client.mod_history.get(key).push(obj);
+            this.client.mod_history.set(key, this.client.mod_history.get(key));
+            this.client.cases.get(message.guild.id).push(obj);
+            this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
+            if (!message.settings.logging.modlog.enabled) return;
+            if (!message.guild.channels.get(message.settings.logging.modlog.channel)) return;
+            const ban_log = new RichEmbed()
+                .setColor('RED')
+                .setAuthor(`${member.user.tag} | Hard-Ban`, member.user.displayAvatarURL)
+                .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was hard-banned by ${message.author.tag}`)
+                .addField('Reason', reason)
+                .setFooter(`Case #${this.client.cases.get(message.guild.id).length - 1} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+            return message.guild.channels.get(message.settings.logging.modlog.channel).send(ban_log);
         } else if (flag === 'temp') {
-
+            message.delete();
+            const embed = new RichEmbed()
+                .setAuthor(message.author.username, message.author.displayAvatarURL)
+                .setTitle('User Banned')
+                .setDescription(`**${member.user.username}** has been banned for ${ms(ms(time), { long: true })} by ${message.author.username}`)
+                .addField('Reason', reason)
+                .setColor('RED')
+                .setThumbnail('https://goo.gl/35DMwK');
+            try {
+                await tempban(message, member, reason, ms(ms(time), { long: true }));
+            } catch (e) {
+                console.log(e.message);
+            };
+            message.channel.send(member.toString(), embed);
+            try {
+                await member.ban(`Banned by ${message.author.tag} | Reason: ${reason}`);
+            } catch (e) {
+                return this.client.error(message, e.message), console.error(e.stack);
+            };
+            if (!this.client.mod_history.has(key)) this.client.mod_history.set(key, []);
+            const obj = {
+                case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
+                user: member.user.tag,
+                ID: member.user.id,
+                moderator: message.author.tag,
+                type: 'tempban',
+                reason: reason,
+                time: this.client.moment().format('LLLL'),
+                duration: ms(ms(time), { long: true })
+            };
+            this.client.mod_history.get(key).push(obj);
+            this.client.mod_history.set(key, this.client.mod_history.get(key));
+            this.client.cases.get(message.guild.id).push(obj);
+            this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
+            setTimeout(async () => {
+                try {
+                    await message.guild.unban(member.user.id, 'Temp-Ban Expired');
+                } catch (e) {
+                    return this.client.error(message, e.message), console.error(e.stack);
+                };
+                const obj = {
+                    case: this.client.cases.get(message.guild.id).length > 0 ? this.client.cases.get(message.guild.id).length : 1,
+                    user: member.user.tag,
+                    ID: member.user.id,
+                    moderator: this.client.user.tag,
+                    type: 'unban',
+                    reason: 'Temp-Ban Expred',
+                    time: this.client.moment().format('LLLL')
+                };
+                this.client.mod_history.get(key).push(obj);
+                this.client.mod_history.set(key, this.client.mod_history.get(key));
+                this.client.cases.get(message.guild.id).push(obj);
+                this.client.cases.set(message.guild.id, this.client.cases.get(message.guild.id));
+            }, (5000));
+            if (!message.settings.logging.modlog.enabled) return;
+            if (!message.guild.channels.get(message.settings.logging.modlog.channel)) return;
+            const ban_log = new RichEmbed()
+                .setColor('RED')
+                .setAuthor(`${member.user.tag} | Temp-Ban`, member.user.displayAvatarURL)
+                .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was banned for ${ms(ms(time), { long: true })} by ${message.author.tag}`)
+                .addField('Reason', reason)
+                .setFooter(`Case #${this.client.cases.get(message.guild.id).length - 1} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+            message.guild.channels.get(message.settings.logging.modlog.channel).send(ban_log);
+            setTimeout(() => {
+                const unban_log = new RichEmbed()
+                    .setColor('GREEN')
+                    .setAuthor(`${member.user.tag} | Unban`, member.user.displayAvatarURL)
+                    .setDescription(`**${member.user.tag}** (\`${member.user.id}\`) was unbanned by ${this.client.user.tag}`)
+                    .addField('Reason', 'Temp-Ban Expired')
+                    .setFooter(`Case #${this.client.cases.get(message.guild.id).length} | ${this.client.moment().format('dddd, MMMM Do, YYYY, hh:mm:ss A')}`, message.author.displayAvatarURL)
+                message.guild.channels.get(message.settings.logging.modlog.channel).send(unban_log);
+            }, ms(time));
+            return;
         };
     };
 };  
