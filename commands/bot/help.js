@@ -23,40 +23,40 @@ class Help extends Command {
     };
 
     async run(message, args) {
-          if (!message.guild) {
-            if (!args[0]) {
-                const embed = new RichEmbed()
-                    .setAuthor(this.client.user.username, this.client.user.displayAvatarURL)
-                    .setTitle(`${this.client.user.username} Help Menu`)
-                    .addField('Administrative', help.admin(this.client, message))
-                    .addField('Bot', help.bot(this.client, message))
-                    .addField('Fun', help.fun(this.client, message))
-                    .addField('Moderation', help.moderation(this.client, message))
-                    .addField('Music', help.music(this.client, message))
-                    .addField('Trivia', help.trivia(this.client, message))
-                    .addField('Utility', help.utility(this.client, message))
-                    .setColor(this.client.color);
-                return message.channel.send(embed);
-            };
-            const command = args[0].toLowerCase();
-            const cmd = this.client.commands.get(command) || this.client.commands.get(this.client.aliases.get(command));
-            if (!cmd) return;
-            const name = cmd.help.name.split('')[0].toUpperCase() + cmd.help.name.split('').slice(1).join('');
-            const desc = cmd.help.description;
-            const usage = cmd.help.usage.replace('{prefix}', message.settings.prefix).replace('{prefix}', message.settings.prefix);
-            const params = `\`\`\`${cmd.help.parameters}\`\`\``;
-            const aliases = cmd.conf.aliases.length > 0 ? `\`[${cmd.conf.aliases.join(', ')}]\`` : 'No aliases.';
-            const embed = new RichEmbed()
-                .setColor(this.client.color)
-                .setAuthor(`${this.client.user.username} | Command: ${name}`, this.client.user.displayAvatarURL)
-                .addField('Description', desc)
-                .addField('Usage', usage)
-                .addField('Parameters', params)
-                .addField('Aliases', aliases);
-            if (!cmd.help.extended) return message.channel.send(embed);
-            embed.addField('Extended Help', cmd.help.extended_help.replace('{prefix}', message.settings.prefix).replace('{prefix}', message.settings.prefix));
-            return message.channel.send(embed);              
-        };
+        //   if (!message.guild) {
+        //     if (!args[0]) {
+        //         const embed = new RichEmbed()
+        //             .setAuthor(this.client.user.username, this.client.user.displayAvatarURL)
+        //             .setTitle(`${this.client.user.username} Help Menu`)
+        //             .addField('Administrative', help.admin(this.client, message))
+        //             .addField('Bot', help.bot(this.client, message))
+        //             .addField('Fun', help.fun(this.client, message))
+        //             .addField('Moderation', help.moderation(this.client, message))
+        //             .addField('Music', help.music(this.client, message))
+        //             .addField('Trivia', help.trivia(this.client, message))
+        //             .addField('Utility', help.utility(this.client, message))
+        //             .setColor(this.client.color);
+        //         return message.channel.send(embed);
+        //     };
+        //     const command = args[0].toLowerCase();
+        //     const cmd = this.client.commands.get(command) || this.client.commands.get(this.client.aliases.get(command));
+        //     if (!cmd) return;
+        //     const name = cmd.help.name.split('')[0].toUpperCase() + cmd.help.name.split('').slice(1).join('');
+        //     const desc = cmd.help.description;
+        //     const usage = cmd.help.usage.replace('{prefix}', message.settings.prefix).replace('{prefix}', message.settings.prefix);
+        //     const params = `\`\`\`${cmd.help.parameters}\`\`\``;
+        //     const aliases = cmd.conf.aliases.length > 0 ? `\`[${cmd.conf.aliases.join(', ')}]\`` : 'No aliases.';
+        //     const embed = new RichEmbed()
+        //         .setColor(this.client.color)
+        //         .setAuthor(`${this.client.user.username} | Command: ${name}`, this.client.user.displayAvatarURL)
+        //         .addField('Description', desc)
+        //         .addField('Usage', usage)
+        //         .addField('Parameters', params)
+        //         .addField('Aliases', aliases);
+        //     if (!cmd.help.extended) return message.channel.send(embed);
+        //     embed.addField('Extended Help', cmd.help.extended_help.replace('{prefix}', message.settings.prefix).replace('{prefix}', message.settings.prefix));
+        //     return message.channel.send(embed);              
+        // };
         if (!args[0]) {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
@@ -91,26 +91,34 @@ class Help extends Command {
         const reject = (perm) => {
             return message.channel.send(`${this.client.emotes.x} You lack the permission \`${perm}\` and cannot see help for this command or category.`);
         };
+        const cmds = (cat) => {
+            let array = [];
+            this.client.commands.forEach(i => {
+                if (i.help.category !== cat) return;
+                array.push(`${message.settings.prefix}${i.help.name} - ${i.help.description}`);
+            });
+            return array.join('\n');
+        };
         if (flag === 'admin') {
             if (!message.member.permissions.has('ADMINISTRATOR')) return reject('ADMINISTRATOR');
             const embed = new RichEmbed()
                 .setColor(this.client.color)
-                .setAuthor(`${this.client.user.username} | Category: Admin`)
-                .setDescription(help.admin(this.client, message))
+                .setAuthor(`${this.client.user.username} | Category: Admin`, this.client.user.displayAvatarURL)
+                .setDescription(cmds('admin'))
                 .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
             return message.channel.send(embed);
         } else if (flag === 'bot') {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
                 .setAuthor(`${this.client.user.username} | Category: Bot`)
-                .setDescription(help.bot(this.client, message))
+                .setDescription(cmds('bot'))
                 .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
             return message.channel.send(embed);
         } else if (flag === 'fun') {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
                 .setAuthor(`${this.client.user.username} | Category: Fun`)
-                .setDescription(help.fun(this.client, message))
+                .setDescription(cmds('fun'))
                 .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
             return message.channel.send(embed);
         } else if (flag === 'mod' || flag === 'moderation') {
@@ -118,28 +126,21 @@ class Help extends Command {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
                 .setAuthor(`${this.client.user.username} | Category: Moderation`)
-                .setDescription(help.moderation(this.client, message))
-                .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
-            return message.channel.send(embed);
-        } else if (flag === 'music') {
-            const embed = new RichEmbed()
-                .setColor(this.client.color)
-                .setAuthor(`${this.client.user.username} | Category: Music`)
-                .setDescription(help.music(this.client, message))
+                .setDescription(cmds('moderation'))
                 .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
             return message.channel.send(embed);
         } else if (flag === 'trivia') {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
                 .setAuthor(`${this.client.user.username} | Category: Trivia`)
-                .setDescription(help.trivia(this.client, message))
+                .setDescription(cmds('trivia'))
                 .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
             return message.channel.send(embed);
         } else if (flag === 'utility') {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
                 .setAuthor(`${this.client.user.username} | Category: Utility`)
-                .setDescription(help.utility(this.client, message))
+                .setDescription(cmds('utility'))
                 .setFooter(`» Need help on a specific command? Run ${message.settings.prefix}help <command>`);
             return message.channel.send(embed);
         } else return;      
