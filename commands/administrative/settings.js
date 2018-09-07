@@ -51,29 +51,74 @@ const { RichEmbed } = require('discord.js');
             if (!args[1]) return fail('Must supply a key to edit.');
             let key = args[1].toLowerCase();
             if (key === 'prefix') {
-                const new_prefix = args[2];
-                if (!new_prefix || new_prefix.length >= 10) return fail('No prefix was provided, or the prefix exceeded 10 characters.');
-                message.settings.prefix = new_prefix;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('prefix', new_prefix);
+                const msg = await message.channel.send('```\nWhat should the new prefix be?\n\nThis menu will time out in 30 seconds.\n```\n>`Type \'cancel\' to cancel the prompt.`');
+                const filter = m => m.author.id === message.author.id;
+                const collector = await message.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
+                    .then(collected => {
+                        if (collected.first().content.toLowerCase() === 'cancel') {
+                            return msg.edit('Cancelled.');
+                        };
+                        if (collected.first().content.split(' ')[0].length >= 10) {
+                            collected.first().delete();
+                            return msg.edit(`${this.client.emotes.x} Prefixes cannot be longer than 10 characters in length.`);
+                        };
+                        message.settings.prefix = collected.first().content.split(' ')[0];
+                        this.client.settings.set(message.guild.id, message.settings);
+                        collected.first().delete();
+                        return msg.edit(`${this.client.emotes.check} Your prefix is now \`${message.settings.prefix}\``);
+                    })
+                    .catch(err => {
+                        return msg.edit(`${this.client.emotes.x} No response given, cancelling.`);
+                    });
+                //const new_prefix = args[2];
+                // if (!new_prefix || new_prefix.length >= 10) return fail('No prefix was provided, or the prefix exceeded 10 characters.');
+                // message.settings.prefix = new_prefix;
+                // this.client.settings.set(message.guild.id, message.settings);
+                // return success('prefix', new_prefix);
             } else if (key === 'msglog') {
-                if (!args[2]) return fail('No channel was provided.');
-                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
-                    message.settings.logging.msglog.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('message log', 'false');
-                };
-                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
-                    message.settings.logging.msglog.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('message log', 'true');
-                };
-                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
-                if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                message.settings.logging.msglog.channel = new_log.id;
-                message.settings.logging.msglog.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('message log', new_log.name);
+                const msg = await message.channel.send('```\nWhat should the message log channel be?\n\nThis menu will time out in 30 seconds.\n```\n>`Type \'cancel\' to cancel the prompt.`');
+                const filter = m => m.author.id === message.author.id;
+                const collector = await message.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
+                    .then(collected => {
+                        if (collected.first().content.toLowerCase() === 'cancel') {
+                            return msg.edit('Cancelled.');
+                        };
+                        let channel = collected.first().content.split(' ')[0];
+                        channel = message.mentions.channels.first() || message.guild.channels.find(c => c.name.includes(channel)) || message.guild.channels.get(channel);
+                        if (!channel) {
+                            collected.first().delete();
+                            msg.edit('```Couldn\'t find that channel. How about we try that again?\n\nThis menu will time out after 30 seconds.```\n> `Type \'cancel\' to cancel this prompt.`');
+                            const collector = message.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
+                                .then(collected => {
+                                    if (collected.first().content.toLowerCase() === 'cancel') {
+                                        return msg.edit('Cancelled.');
+                                    };
+                                    let channel = collected.first().content.split(' ')[0];
+                                    channel = message.mentions.channels.first() || message.guild.channels.find(c => c.name.includes(channel)) || message.guild.channels.get(channel);
+                                    if (!channel) return collected.first().delete(), msg.edit('Seems we can\'t get it right. Run this command again with a __valid__ channel mention, name, or ID!');
+                                    message.settings.logging.msglog = {
+                                        enabled: true,
+                                        channel: channel.id
+                                    };
+                                    this.client.settings.set(message.guild.id, message.settings);
+                                    collected.first().delete();
+                                    return msg.edit(`${this.client.emotes.check} All message edits and deletes will now be logged in ${channel.toString()}`);
+                                })
+                                .catch(err => {
+                                    return msg.edit(`${this.client.emotes.check} Menu timed out.`);
+                                });
+                        };
+                        message.settings.logging.msglog = {
+                            enabled: true,
+                            channel: channel.id
+                        };
+                        this.client.settings.set(message.guild.id, message.settings);
+                        collected.first().delete();
+                        return msg.edit(`${this.client.emotes.check} All message edits and deletes will now be logged in ${channel.toString()}`);
+                    })
+                    .catch(err => {
+                        return msg.edit(`${this.client.emotes.x} No response given, cancelling.`);
+                    })
             } else if (key === 'nicklog') {
                 if (!args[2]) return fail('No channel was provided.');
                 if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
@@ -128,6 +173,13 @@ const { RichEmbed } = require('discord.js');
                 message.settings.logging.imagelog.enabled = true;
                 this.client.settings.set(message.guild.id, message.settings);
                 return success('image log', new_log.name);
+            } else if (key === 'staff' || key === 'staff_role') {
+                if (!args[2]) return fail('No role was provided.');
+                const new_role = message.mentions.roles.first() || message.guild.roles.find(r => r.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.roles.get(args[2]);
+                if (!new_role) return fail('Invalid role - Role does not exist.');
+                message.settings.staff_role = new_role.id;
+                this.client.settings.set(message.guild.id, message.settings);
+                return success('staff role', new_role.name);
             } else if (key === 'rolelog') {
                 if (!args[2]) return fail('No channel was provided.');
                 if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
@@ -263,8 +315,17 @@ const { RichEmbed } = require('discord.js');
                     this.client.settings.set(message.guild.id, message.settings);
                     return success('leave footer message', msg);
                 };
-            } else if (key === 'staff') {
-
+            } else if (['accage', 'account_age', 'account_age'].includes(key)) {
+                //$set edit accage 4d ban
+                if (!args[2]) return fail('No date was specified. Date should be `4d` or `1y`. This specifies the minimum age the account must be.');
+                if (!args[3] || !['tag_staff', 'staff', 'tag', 'tag-staff', 'mute', 'kick', 'ban'].includes(args[3])) {
+                    return fail('Invalid or no punishment provided. Applicable punishments: `tag_staff`, `mute`, `kick`, `ban`');
+                };
+                message.settings.automod.acc_age.age_limit = args[2];
+                message.settings.automod.acc_age.action = args[3].toLowerCase();
+                message.settings.automod.acc_age.enabled = true;
+                this.client.settings.set(message.guild.id, message.settings);
+                return message.channel.send(`${this.client.emotes.check} The bot will \`${args[3]}\` any users that join with an account created less than \`${args[2]}\` ago.`);
             };
         } else if (flag === 'reset') {
 
