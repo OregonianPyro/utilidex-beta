@@ -22,316 +22,94 @@ const { RichEmbed } = require('discord.js');
     };
 
     async run(message, args) {
-        if (!args[0]) return this.client.help(this.client, message, 'settings');
-        let flag = args[0].toLowerCase();
-        /**
-         * @param {string} key The key. 
-         * @param {string} val The value.
-         * @returns {object} Returns an embed to send.
-         */
-        const success = (key, val) => {
-            const embed = new RichEmbed()
-                .setColor('GREEN')
-                .setDescription(`${this.client.emotes.check} Successfully set your \`${key}\` to \`${val}\``);
-            return message.channel.send(embed);
+        const view = async (m) => {
+            let filter = m => m.author.id === message.author.id;
+            let msg = await m.channel.send('What would you like to see? Options: `all`, `logging`, `roles`, `ignored`, `disabled commands`, `automod`, `welcome config`, `leave config`.\n\nThis menu will time out after 30 seconds.');
+            m.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
+                .then(msgs => {
+                    let option = msgs.first().content.toLowerCase();
+                    if (!['all', 'logging', 'roles', 'ignored', 'disabled commands', 'automod', 'welcome config', 'leave config'].includes(option)) {
+                        return msgs.first().delete(), msg.edit(`${this.client.emotes.x} It seems you provied an invalid option. Try again.`);
+                    };
+                    if (option === 'all') {
+                        let prefix = m.settings.prefix;
+                        m.settings.ignored.users.forEach(u => {
+                            if (m.settings.ignored.users.length < 1) return;
+                            ignored_arrays.users.push(this.client.fetchuser(u).tag);
+                        });
+                        m.settings.ignored.roles.forEach(r => {
+                            if (m.settings.ignored.roles.length < 1) return;
+                            ignored_arrays.roles.push(m.guild.roles.get(r).name);
+                        });
+                        m.settings.ignored.channels.forEach(c => {
+                            if (m.settings.ignored.channels.length < 1) return;
+                            ignored_arrays.channels.push(m.guild.channels.get(c).name);
+                        });
+                        let logs = {
+                            modlog: `Enabled: ${m.settings.logging.modlog.enabled} | Channel: ${m.settings.logging.modlog.channel ? `#${m.guild.channels.get(m.settings.logging.modlog.channel).name}` : 'No Channel'}`,
+                            msglog: `Enabled: ${m.settings.logging.msglog.enabled} | Channel: ${m.settings.logging.msglog.channel ? `#${m.guild.channels.get(m.settings.logging.msglog.channel).name}` : 'No Channel'}`,
+                            nicklog: `Enabled: ${m.settings.logging.nicklog.enabled} | Channel: ${m.settings.logging.nicklog.channel ? `#${m.guild.channels.get(m.settings.logging.nicklog.channel).name}` : 'No Channel'}`,
+                            rolelog: `Enabled: ${m.settings.logging.rolelog.enabled} | Channel: ${m.settings.logging.rolelog.channel ? `#${m.guild.channels.get(m.settings.logging.rolelog.channel).name}` : 'No Channel'}`,
+                            imagelog: `Enabled: ${m.settings.logging.imagelog.enabled} | Channel: ${m.settings.logging.imagelog.channel ? `#${m.guild.channels.get(m.settings.logging.imagelog.channel).name}` : 'No Channel'}`,
+                            serverlog: `Enabled: ${m.settings.logging.serverlog.enabled} | Channel: ${m.settings.logging.serverlog.channel ? `#${m.guild.channels.get(m.settings.logging.serverlog.channel).name}` : 'No Channel'}`
+                        };
+                        let roles = {
+                            muterole: m.settings.mute_role ? m.guild.roles.get(m.settings.mute_role).name : 'Not Set',
+                            staffrole: m.settings.staff ? m.guild.roles.get(m.settings.staff).name : 'Not Set'
+                        };
+                        let ignored_arrays = {
+                            users: [],
+                            roles: [],
+                            channels: []
+                        };
+                       let ignored = {
+                           users: ignored_arrays.users.length > 0 ? ignored_arrays.users.join(', ') : 'Not Set',
+                           roles: ignored_arrays.roles.length > 0 ? ignored_arrays.roles.join(', ') : 'Not Set',
+                           channels: ignored_arrays.channels.length > 0 ? ignored_arrays.channels.join(', ') : 'Not Set'
+                       };
+                       let cmds = m.settings.disabled_commands.length > 0 ? m.settings.disabled_commands.join(', ') : 'Not Set';
+                       msgs.first().delete();
+                       return msg.edit(`Current Settings for: ${m.guild.name}\n\`\`\`prefix: ${prefix}\nmodlog: ${logs.modlog}\nnickname log: ${logs.nicklog}\nmessage log: ${logs.msglog}\nimage log: ${logs.imagelog}\nrole log: ${logs.rolelog}\nserver log: ${logs.serverlog}\n` +
+                                `muted role: ${roles.muterole}\nstaff role: ${roles.staffrole}\nignored users: ${ignored.users}\nignored roles: ${ignored.roles}\nignored channels: ${ignored.channels}\ndisabled commands: ${cmds}\`\`\``);
+                    };
+                });
         };
-        /**
-         * @param {string} Error The error. 
-         * @returns {object} Returns an embed to send.
-         */
-        const fail = (err) => {
-            const embed = new RichEmbed()
-                .setColor('RED')
-                .setDescription(`${this.client.emotes.x} Error: ${err}`);
-            return message.channel.send(embed);
+        const edit = (m) => {
+            let filter = m => m.author.id === message.author.id;
+            m.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
+                .then(msgs => {
+                    let key = msgs.first().content.toLowerCase();
+                    let keys = ['prefix', 'modlog', 'message log', 'nick log', 'role log', 'server log', 'image log', 'mute role', 'staff role', 'welcome config', 'leave config'];
+                    if (!keys.includes(key)) return msgs.first().delete(), msg.edit(`${this.client.emotes.x} Whoops! It seems the key you provided was invalid.`);
+                    key = keys.indexOf(key);
+                    key = keys[key];
+                    if (key === 'prefix') {
+                        msgs.first().delete();
+                        msg.edit('```What should the new prefix be?```\n:stopwatch: This will time out in 30 seconds.');
+                        m.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
+                            .then(msgs => {
+                                if (msgs.first().content.split(' ')[0].length >= 10) return msgs.first().delete(), msg.edit(`${this.client.emotes.x} Hmm..that seems like a long prefix! Try a shorter one.`);
+                                m.settings.prefix = msgs.first().content.split(' ')[0];
+                                this.client.settings.set(m.guild.id, m.settings);
+                                return msgs.first().delete(), message.channel.send(`${this.client.emotes.check} Your prefix is now \`${m.settings.prefix}\``);
+                            });
+                    };
+                });
         };
-        if (flag === 'view') {
+        let msg = await message.channel.send('Welcome to Utilidex\'s settings menu! To get started, provide an action. The list of actions are: `view`, `edit`, `reset`\n\nThis menu will timeout after one minute.');
+        let filter = m => m.author.id === message.author.id;
+        message.channel.awaitMessages(filter, { max: 1, time: 60000, errors: ['time'] }).then(msgs => {
+            let flag = msgs.first().content.split(' ')[0].toLowerCase();
+            if (flag === 'view') {
+                return view(msgs.first());
+            } else if (flag === 'edit') {
+                msgs.first().delete();
+                msg.edit('To edit a current settings, please provide a valid key. Valid keys are:```prefix, modlog, message log, nick log, image log, role log, server log, mute role, staff role, welcome config, leave config```\n:stopwatch: This menu will time out after __30 seconds__');
+                return edit(msgs.first());
+            } else if (flag === 'reset') {
 
-        } else if (flag === 'edit') {
-            if (!args[1]) return fail('Must supply a key to edit.');
-            let key = args[1].toLowerCase();
-            if (key === 'prefix') {
-                const msg = await message.channel.send('```\nWhat should the new prefix be?\n\nThis menu will time out in 30 seconds.\n```\n>`Type \'cancel\' to cancel the prompt.`');
-                const filter = m => m.author.id === message.author.id;
-                const collector = await message.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
-                    .then(collected => {
-                        if (collected.first().content.toLowerCase() === 'cancel') {
-                            return msg.edit('Cancelled.');
-                        };
-                        if (collected.first().content.split(' ')[0].length >= 10) {
-                            collected.first().delete();
-                            return msg.edit(`${this.client.emotes.x} Prefixes cannot be longer than 10 characters in length.`);
-                        };
-                        message.settings.prefix = collected.first().content.split(' ')[0];
-                        this.client.settings.set(message.guild.id, message.settings);
-                        collected.first().delete();
-                        return msg.edit(`${this.client.emotes.check} Your prefix is now \`${message.settings.prefix}\``);
-                    })
-                    .catch(err => {
-                        return msg.edit(`${this.client.emotes.x} No response given, cancelling.`);
-                    });
-                //const new_prefix = args[2];
-                // if (!new_prefix || new_prefix.length >= 10) return fail('No prefix was provided, or the prefix exceeded 10 characters.');
-                // message.settings.prefix = new_prefix;
-                // this.client.settings.set(message.guild.id, message.settings);
-                // return success('prefix', new_prefix);
-            } else if (key === 'msglog') {
-                const msg = await message.channel.send('```\nWhat should the message log channel be?\n\nThis menu will time out in 30 seconds.\n```\n>`Type \'cancel\' to cancel the prompt.`');
-                const filter = m => m.author.id === message.author.id;
-                const collector = await message.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
-                    .then(collected => {
-                        if (collected.first().content.toLowerCase() === 'cancel') {
-                            return msg.edit('Cancelled.');
-                        };
-                        let channel = collected.first().content.split(' ')[0];
-                        channel = message.mentions.channels.first() || message.guild.channels.find(c => c.name.includes(channel)) || message.guild.channels.get(channel);
-                        if (!channel) {
-                            collected.first().delete();
-                            msg.edit('```Couldn\'t find that channel. How about we try that again?\n\nThis menu will time out after 30 seconds.```\n> `Type \'cancel\' to cancel this prompt.`');
-                            const collector = message.channel.awaitMessages(filter, { max: 1, time: 30000, errors: ['time'] })
-                                .then(collected => {
-                                    if (collected.first().content.toLowerCase() === 'cancel') {
-                                        return msg.edit('Cancelled.');
-                                    };
-                                    let channel = collected.first().content.split(' ')[0];
-                                    channel = message.mentions.channels.first() || message.guild.channels.find(c => c.name.includes(channel)) || message.guild.channels.get(channel);
-                                    if (!channel) return collected.first().delete(), msg.edit('Seems we can\'t get it right. Run this command again with a __valid__ channel mention, name, or ID!');
-                                    message.settings.logging.msglog = {
-                                        enabled: true,
-                                        channel: channel.id
-                                    };
-                                    this.client.settings.set(message.guild.id, message.settings);
-                                    collected.first().delete();
-                                    return msg.edit(`${this.client.emotes.check} All message edits and deletes will now be logged in ${channel.toString()}`);
-                                })
-                                .catch(err => {
-                                    return msg.edit(`${this.client.emotes.check} Menu timed out.`);
-                                });
-                        };
-                        message.settings.logging.msglog = {
-                            enabled: true,
-                            channel: channel.id
-                        };
-                        this.client.settings.set(message.guild.id, message.settings);
-                        collected.first().delete();
-                        return msg.edit(`${this.client.emotes.check} All message edits and deletes will now be logged in ${channel.toString()}`);
-                    })
-                    .catch(err => {
-                        return msg.edit(`${this.client.emotes.x} No response given, cancelling.`);
-                    })
-            } else if (key === 'nicklog') {
-                if (!args[2]) return fail('No channel was provided.');
-                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
-                    message.settings.logging.nicklog.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('nickname log', 'false');
-                };
-                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
-                    message.settings.logging.nicklog.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('nickname log', 'true');
-                };
-                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
-                if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                message.settings.logging.nicklog.channel = new_log.id;
-                message.settings.logging.nicklog.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('nickname log', new_log.name);
-            } else if (key === 'modlog') {
-                if (!args[2]) return fail('No channel was provided.');
-                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
-                    message.settings.logging.modlog.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('moderation log', 'false');
-                };
-                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
-                    message.settings.logging.modlog.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('moderation log', 'true');
-                };
-                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
-                if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                message.settings.logging.modlog.channel = new_log.id;
-                message.settings.logging.modlog.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('moderation log', new_log.name);
-            } else if (key === 'imagelog') {
-                if (!args[2]) return fail('No channel was provided.');
-                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
-                    message.settings.logging.imagelog.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('image log', 'false');
-                };
-                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
-                    message.settings.logging.imagelog.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('image log', 'true');
-                };
-                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
-                if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                message.settings.logging.imagelog.channel = new_log.id;
-                message.settings.logging.imagelog.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('image log', new_log.name);
-            } else if (key === 'staff' || key === 'staff_role') {
-                if (!args[2]) return fail('No role was provided.');
-                const new_role = message.mentions.roles.first() || message.guild.roles.find(r => r.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.roles.get(args[2]);
-                if (!new_role) return fail('Invalid role - Role does not exist.');
-                message.settings.staff_role = new_role.id;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('staff role', new_role.name);
-            } else if (key === 'rolelog') {
-                if (!args[2]) return fail('No channel was provided.');
-                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
-                    message.settings.logging.rolelog.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('rolelog', 'false');
-                };
-                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
-                    message.settings.logging.rolelog.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('rolelog', 'true');
-                };
-                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
-                if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                message.settings.logging.rolelog.channel = new_log.id;
-                message.settings.logging.rolelog.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('rolelog channel', new_log.name);
-            } else if (key === 'serverlog') {
-                if (!args[2]) return fail('No channel was provided.');
-                if (args[2].toLowerCase() === 'off' || args[2].toLowerCase() === 'false') {
-                    message.settings.logging.serverlog.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('server log', 'false');
-                };
-                if (args[2].toLowerCase() === 'on' || args[2].toLowerCase() === 'true') {
-                    message.settings.logging.serverlog.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('server log', 'true');
-                };
-                const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.channels.get(args[2]);
-                if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                message.settings.logging.serverlog.channel = new_log.id;
-                message.settings.logging.serverlog.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('server log', new_log.name);
-            } else if (key === 'muterole') {
-                if (!args[2]) return fail('No role was provided.');
-                const new_role = message.mentions.roles.first() || message.guild.roles.find(r => r.name.toLowerCase().includes(args[2].toLowerCase())) || message.guild.roles.get(args[2]);
-                if (!new_log) return fail('Invalid role - Role does not exist.');
-                message.settings.muterole = new_role.id;
-                this.client.settings.set(message.guild.id, message.settings);
-                return success('muted role', new_role.name);
-            } else if (key === 'welcome' || key === 'join') {
-                if (!args[2]) return fail('No `welcome` key was provided.');
-                let key = args[2].toLowerCase();
-                if (key === 'off' || key === 'false') {
-                    message.settings.welcome_config.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome message', 'false');
-                };
-                if (key === 'on' || key === 'true') {
-                    message.settings.welcome_config.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome message', 'true');
-                };
-                if (key === 'type') {
-                    if (!args[3]) return fail('No type was provided.');
-                    let type = args[3].toLowerCase();
-                    if (type !== 'text' && type !== 'embed') return fail("Variable 'type' can only be `text` or `embed`");
-                    message.settings.welcome_config.type = type;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome message type', type);
-                } else if (key === 'channel') {
-                    const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[3].toLowerCase())) || message.guild.channels.get(args[3]);
-                    if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                    message.settings.welcome_config.channel = new_log.id;
-                    message.settings.welcome_config.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome channel', new_log.name);
-                } else if (key === 'message') {
-                    if (!args[3]) return fail('No message was provided.');
-                    let msg = args.slice(2).join(' ');
-                    message.settings.welcome_config.message = msg;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome message', msg);
-                } else if (key === 'color') {
-                    if (!args[3]) return fail('No color was provided.');
-                    let color = args[3];
-                    message.settings.welcome_config.color = color;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome message color', color);
-                } else if (key === 'footer') {
-                    if (!args[3]) return fail('No footer message was provided.');
-                    let msg = args.slice(2).join(' ');
-                    message.settings.welcome_config.footer = msg;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('welcome footer message', msg);
-                };
-            } else if (key === 'leave') {
-                if (!args[2]) return fail('No `leave` key was provided.');
-                let key = args[2].toLowerCase();
-                if (key === 'off' || key === 'false') {
-                    message.settings.leave_config.enabled = false;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave message', 'false');
-                };
-                if (key === 'on' || key === 'true') {
-                    message.settings.leave_config.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave message', 'true');
-                };
-                if (key === 'type') {
-                    if (!args[3]) return fail('No type was provided.');
-                    let type = args[3].toLowerCase();
-                    if (type !== 'text' && type !== 'embed') return fail("Variable 'type' can only be `text` or `embed`");
-                    message.settings.leave_config.type = type;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave message type', type);
-                } else if (key === 'channel') {
-                    const new_log = message.mentions.channels.first() || message.guild.channels.find(c => c.name.toLowerCase().includes(args[3].toLowerCase())) || message.guild.channels.get(args[3]);
-                    if (!new_log) return fail('Invalid channel - Channel does not exist.');
-                    message.settings.leave_config.channel = new_log.id;
-                    message.settings.leave_config.enabled = true;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave channel', new_log.name);
-                } else if (key === 'message') {
-                    if (!args[3]) return fail('No message was provided.');
-                    let msg = args.slice(2).join(' ');
-                    message.settings.leave_config.message = msg;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave message', msg);
-                } else if (key === 'color') {
-                    if (!args[3]) return fail('No color was provided.');
-                    let color = args[3];
-                    message.settings.leave_config.color = color;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave message color', color);
-                } else if (key === 'footer') {
-                    if (!args[3]) return fail('No footer message was provided.');
-                    let msg = args.slice(2).join(' ');
-                    message.settings.leave_config.footer = msg;
-                    this.client.settings.set(message.guild.id, message.settings);
-                    return success('leave footer message', msg);
-                };
-            } else if (['accage', 'account_age', 'account_age'].includes(key)) {
-                //$set edit accage 4d ban
-                if (!args[2]) return fail('No date was specified. Date should be `4d` or `1y`. This specifies the minimum age the account must be.');
-                if (!args[3] || !['tag_staff', 'staff', 'tag', 'tag-staff', 'mute', 'kick', 'ban'].includes(args[3])) {
-                    return fail('Invalid or no punishment provided. Applicable punishments: `tag_staff`, `mute`, `kick`, `ban`');
-                };
-                message.settings.automod.acc_age.age_limit = args[2];
-                message.settings.automod.acc_age.action = args[3].toLowerCase();
-                message.settings.automod.acc_age.enabled = true;
-                this.client.settings.set(message.guild.id, message.settings);
-                return message.channel.send(`${this.client.emotes.check} The bot will \`${args[3]}\` any users that join with an account created less than \`${args[2]}\` ago.`);
             };
-        } else if (flag === 'reset') {
-
-        } else {
-
-        };
+        });
     };
  };
 
