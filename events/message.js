@@ -1,15 +1,19 @@
 const { RichEmbed } = require('discord.js');
 const regex = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|discordapp\.com\/invite)\/.+[a-z]/ig;
+const tag_check = require('../functions/tag_check.js');
 
-class Message {
+module.exports = class {
     constructor(client) {
         this.client = client;
     };
 
-    async run(message) {        
+    async run(message) {
+        const prefixMention = new RegExp(`^<@!?${this.client.user.id}>`);
         message.settings = message.guild ? this.client.settings.get(message.guild.id) : this.client.default_settings;
         message.cases = message.guild ? this.client.cases.get(message.guild.id) : 0;
+        message.tags = message.guild ? (this.client.tags.has(message.guild.id) ? this.client.tags.get(message.guild.id) : this.client.tags.set(message.guild.id, [])) : '';
         if (message.author.bot) return;
+        if (message.channel.type !== 'text') return;
         if (message.attachments.size > 0) {
             const embed = new RichEmbed()
                 .setColor(this.client.color)
@@ -23,60 +27,13 @@ class Message {
             if (!log || !message.settings.logging.imagelog.enabled) return;
             return log.send(embed);
         };
-        if (regex.test(message.content)) return require('../automod/invite_links.js')(message);
-        //
-        if (message.content.toLowerCase() === `<@${this.client.user.id}> prefix` || message.content.toLowerCase() === `<@!${this.client.user.id}> prefix`) {
-            return message.channel.send(`${message.author} | The prefix for '${message.guild.name}' is \`${message.settings.prefix}\``);
+        if (message.content.match(this.prefixMention) && message.content.toLowerCase().includes('prefix')) {
+            return message.channel.send(`The prefix for __${message.guild.name}__ is \`${message.settings.prefix}\``);
         };
-        if (this.client.slowmode_array.includes(message.channel.id) && this.client.slowmode.has(message.channel.id)) {
-            if (!this.client.slowmode.get(message.channel.id).includes(message.author.id)) {
-                this.client.slowmode.get(message.channel.id).push(message.author.id);
-            } else {
-                message.delete();
-                setTimeout(() => {
-                    if (!this.client.slowmode.has(message.channel.id)) return;
-                    let index = this.client.slowmode.get(message.channel.id).indexOf(message.author.id);
-                    this.client.slowmode.get(message.channel.id).splice(index, 1);
-                }, (this.client.slowmode_times.get(message.channel.id)));
-            };
-        };
-        const prefixMention = new RegExp(`^<@!?${this.client.user.id}>`);
-        const prefix = message.content.match(prefixMention) ? message.content.match(prefixMention)[0] : message.settings.prefix;
-        const args = message.content.slice(prefix.length).trim().split(/ +/g);
-        if (!message.content.startsWith(prefix)) return;
-        let command = args.shift().toLowerCase();
-        const cmd = this.client.commands.get(command) || this.client.commands.get(this.client.aliases.get(command));
-        if (!cmd) return;
-        this.client.usedCommands.set(cmd.help.name, this.client.usedCommands.get(cmd.help.name) + 1);
-        if (!message.guild && cmd.conf.guildOnly) return message.channel.send(`${this.client.emotes.x} This command cannot be ran in DMs.`);
-        if (!message.guild && !cmd.conf.guildOnly) {
-            try {
-                await cmd.run(message, args);
-            } catch (e) {
-                const embed = new RichEmbed()
-                    .setColor('RED')
-                    .setTitle('Command Error')
-                    .setDescription(`$0{this.client.emotes.x} Something went wrong trying to execute that command:\`\`\`${e.message}\`\`\``);
-                message.delete(), message.channel.send(embed);
-                console.error(this.client.chalk.bgBlack.redBright(e.stack));
-            };
-        };
-        if (!message.member.permissions.has(cmd.conf.permission)) return message.reply('cant use that!');
-        if (!message.guild.me.permissions.has(cmd.conf.bot_permission)) return message.reply(`the bot lacks the permission \`${cmd.conf.bot_permission}\``);
-        if (cmd.conf.devOnly && message.author.id !== '312358298667974656') {
-            return this.client.error(message, 'This command can only be ran by the bot developer.');
-        };
-        try {
-            await cmd.run(message, args);
-        } catch (e) {
-            const embed = new RichEmbed()
-                .setColor('RED')
-                .setTitle('Command Error')
-                .setDescription(`${this.client.emotes.x} Something went wrong trying to execute that command:\`\`\`${e.message}\`\`\``);
-            message.delete(), message.channel.send(embed);
-            console.error(this.client.chalk.bgBlack.redBright(e.stack));
-        };
+        const prefix = message.settings.prefix;
+        if (message.content.indexOf(prefix) !== 0) return;
+        // const args = message.content.slice(prefix.length).trim().split(/ +/g);
+        let args = message.content.split(' ').slice(1);
+        return require('../functions/run_command.js')(message, args);
     };
 };
-
-module.exports = Message;
