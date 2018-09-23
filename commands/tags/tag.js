@@ -23,6 +23,7 @@ class Tag extends Command {
 
     async run(message, args) {
         if (!args[0]) return this.client.help(this.client, message, 'tag');
+        if (!message.content.includes('--')) return;
         const action = message.content.split('--')[1].split(' ')[0];
         if (action === 'add') {
             if (message.tags.length >= 100) return this.client.error(message, 'Maximum amount of tags (100) reached. Please remove a tag (or tags) to add a new one.');
