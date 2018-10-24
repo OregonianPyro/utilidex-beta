@@ -24,7 +24,7 @@ class Ascii extends Command {
         if (!args[0]) return this.client.help(this.client, message, 'ascii');
         figlet(args.join(' '), (err, data) => {
             if (err) throw new Error(err.message), console.error(err.stack);
-            return message.channel.send(data, { code: 'ascii' }), console.log(data); 
+            return message.channel.send(data, { code: 'ascii' }).catch(e => this.client.error(message, 'Please try a shorter message.'));
         });
     };
 };
