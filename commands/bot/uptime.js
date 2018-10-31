@@ -1,7 +1,6 @@
 const Command = require('../../base/command.js');
 const { RichEmbed } = require('discord.js');
-const moment = require("moment");
-require("moment-duration-format");
+const { parse, format, distanceInWordsToNow  } = require('date-fns');
 
 class Uptime extends Command {
     constructor(client) {
@@ -23,12 +22,13 @@ class Uptime extends Command {
     };
 
     async run(message, args) {
-        const uptime = this.client.moment.duration(this.client.uptime).format(' D [days], H [hrs], m [mins], s [secs]');
+        let uptime = format(new Date(this.client.readyAt), 'dddd, MMMM do, YYYY, hh:mm:ss A');
+        let restarted = distanceInWordsToNow(new Date(this.client.readyAt), new Date());
         const embed = new RichEmbed()
             .setColor(this.client.color)
             .setAuthor(this.client.user.username, this.client.user.displayAvatarURL)
             .setTitle('Bot Uptime')
-            .setDescription(`The bot has been online for **${uptime}**`);
+            .setDescription(`The bot has been online since **${uptime}**\n» Last Restarted: ${restarted} ago`);
         return message.channel.send(embed);
     };
 };
