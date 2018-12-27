@@ -1,0 +1,38 @@
+How Perm-Nodes are Setup and Stored
+
+<commandCategory>.<commandName>
+    Example:
+    botOwner.eval
+    General.ping
+
+The '*' symbol includes all commands within that category:
+    botOwner.*
+    General.*
+
+Perm-Nodes are guild based, and can beon users. Each user in the guild 
+gets an entry in a database keyed by the guild ID as an object containg each command category which is paired with an
+empty array. When an admin grants a command, the command name is added to the appropriate array. 
+
+"someUserID": {
+    botOwner: [],
+    General: []
+};
+
+-> 'Adding' a permission:
+    ->> Command: "u!perms add @Oregonian Pyro#9177 general.ping 
+    ->> Executuin: "myUserID": {
+        botOwner: [],
+        General: ["ping"]
+    };
+    ->> Detailed Steps:
+        ->>> 1) Get the user from the DB [ let db = this.client.store.permNodes.get(message.guild.id).get(myUserID) ];
+        ->>> 2) Push the command name into the appropriate array [ db.General.push("ping") ];
+        ->>> 3) Save it in the database [ this.client.store.permNodes.get(message.guild.id).set(myUserID, this.client.store.permNodes.get(myUserID)) ];
+
+Checking if the user has the correct perm-node: 
+
+let command = this.client.commands.get(args[0]);
+let db = this.client.store.permNodes.get(message.guild.id).get(message.author.id);
+let cat = command.help.category;
+if (!db[cat].includes(command.conf.perms[2]) && !message.member.permissions.has(command.conf.perms[0])) return;
+if (db[cat].includes(command.conf.perms[2])) command.run();
