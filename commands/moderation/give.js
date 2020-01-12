@@ -30,6 +30,9 @@ class Give extends Command {
         if (role.calculatedPosition >= message.guild.me.highestRole.calculatedPosition) {
             return this.client.error(message, 'That role cannot be assigned as it is higher than the bot\'s highest role.');
         };
+        if (member.roles.has(role.id)) {
+            return this.client.error(message, 'That user already has that role.');
+        };
         try {
             await member.addRole(role, `Added by ${message.author.tag}`);
         } catch (e) {
