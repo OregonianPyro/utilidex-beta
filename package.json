@@ -18,7 +18,7 @@
     "eslint-config-eslint": "^5.0.1",
     "insult-compliment": "^1.1.4",
     "klaw": "^3.0.0",
-    "moment": "^2.22.2",
+    "moment": "^2.29.4",
     "moment-duration-format": "^2.2.2",
     "ms": "^2.1.1",
     "path": "^0.12.7",
